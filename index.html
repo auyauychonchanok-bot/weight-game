@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เกมเปิดป้ายจับคู่หน่วยน้ำหนัก 4 คู่</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh;
+  font-family:Arial,"Noto Sans Thai",sans-serif;
+  background:linear-gradient(135deg,#fff8d9 0%,#e9f7ff 100%);
+  color:#17324d;
+}
+.app{max-width:1100px;margin:auto;padding:16px}
+header{
+  background:#fff0a6;border-radius:22px;padding:14px 18px;
+  text-align:center;box-shadow:0 7px 18px #0001;margin-bottom:12px
+}
+h1{margin:0;font-size:clamp(22px,3.5vw,38px)}
+.subtitle{margin-top:6px;font-size:clamp(14px,2vw,20px);font-weight:800}
+.hud{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.stat{
+  background:#fff;border:3px solid #17324d;border-radius:14px;
+  padding:7px 13px;font-weight:900;min-width:130px;text-align:center
+}
+#message{text-align:center;font-size:19px;font-weight:900;min-height:28px;margin:6px}
+#board{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  grid-template-rows:repeat(2,1fr);
+  gap:14px;
+  max-width:900px;
+  margin:0 auto 14px;
+}
+.card{aspect-ratio:1.65/1;perspective:1000px;cursor:pointer}
+.card-inner{
+  width:100%;height:100%;position:relative;
+  transition:transform .5s;transform-style:preserve-3d
+}
+.card.flipped .card-inner,.card.matched .card-inner{transform:rotateY(180deg)}
+.face{
+  position:absolute;inset:0;backface-visibility:hidden;
+  border-radius:18px;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:10px;font-weight:900
+}
+.back{
+  background:linear-gradient(145deg,#6ea0f2,#315bb3);
+  color:#fff;border:4px solid #fff;box-shadow:0 8px 15px #0002;
+  font-size:clamp(25px,4vw,42px)
+}
+.back small{display:block;font-size:13px;margin-top:3px}
+.front{
+  transform:rotateY(180deg);background:#fff;
+  border:4px solid #f1c84b;box-shadow:0 8px 15px #0002;
+  font-size:clamp(18px,2.5vw,29px)
+}
+.matched .front{
+  background:#eafff0;border-color:#36b86a;
+  box-shadow:0 0 0 4px #36b86a44,0 0 22px #36b86a66;
+  animation:pop .45s ease
+}
+.wrong .card-inner{animation:shake .25s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes pop{50%{transform:scale(1.06)}}
+.controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}
+button{
+  border:0;border-radius:14px;padding:11px 20px;
+  font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 5px 10px #0002
+}
+button:active{transform:scale(.96)}
+.reset{background:#ffb84d}.help{background:#79b9ff}
+#win{
+  position:fixed;inset:0;background:#17324dcc;display:none;
+  align-items:center;justify-content:center;padding:20px;z-index:20
+}
+.winbox{
+  background:#fff;border-radius:28px;padding:30px;text-align:center;
+  width:min(500px,100%);box-shadow:0 20px 60px #0005
+}
+.winbox h2{font-size:40px;margin:0 0 10px}
+.winbox p{font-size:20px;font-weight:800;line-height:1.6}
+.confetti{font-size:45px}
+@media(max-width:700px){
+  #board{gap:7px}
+  .face{border-width:3px;padding:5px}
+  .stat{min-width:105px;font-size:13px;padding:6px}
+  button{font-size:15px;padding:9px 14px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>⚖️ เปิดป้าย จับคู่หน่วยน้ำหนัก ⚖️</h1>
+<div class="subtitle">เปิดป้าย แล้วหาคู่ที่สัมพันธ์กัน!</div>
+</header>
+
+<div class="hud">
+<div class="stat">⭐ คะแนน <span id="score">0</span></div>
+<div class="stat">🎯 คู่ <span id="matches">0</span> / 4</div>
+<div class="stat">🔄 เปิด <span id="moves">0</span></div>
+<div class="stat">⏱️ <span id="time">00:00</span></div>
+</div>
+
+<div id="message">คลิกแผ่นป้าย 2 ใบเพื่อเริ่มจับคู่</div>
+<div id="board"></div>
+
+<div class="controls">
+<button class="reset" onclick="startGame()">🔄 เริ่มใหม่</button>
+<button class="help" onclick="showHelp()">📖 วิธีเล่น</button>
+</div>
+</div>
+
+<div id="win">
+<div class="winbox">
+<div class="confetti">🎉 ⭐ 🎊</div>
+<h2>เยี่ยมมาก!</h2>
+<p>จับคู่ครบทั้ง 4 คู่แล้ว!</p>
+<p>
+⭐ คะแนน: <span id="finalScore"></span><br>
+🔄 เปิดทั้งหมด: <span id="finalMoves"></span><br>
+⏱️ เวลาที่ใช้: <span id="finalTime"></span>
+</p>
+<button class="reset" onclick="closeWin();startGame()">🔄 เล่นอีกครั้ง</button>
+</div>
+</div>
+
+<script>
+const pairs=[
+ ["1 กิโลกรัม","1,000 กรัม"],
+ ["2 กิโลกรัม","2,000 กรัม"],
+ ["500 กรัม","5 ขีด"],
+ ["1 ขีด","100 กรัม"]
+];
+
+let cards=[],first=null,second=null,lock=false;
+let score=0,moves=0,matches=0,seconds=0,timer=null;
+
+const board=document.getElementById("board");
+
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){
+   const j=Math.floor(Math.random()*(i+1));
+   [a[i],a[j]]=[a[j],a[i]];
+ }
+ return a;
+}
+
+function startGame(){
+ clearInterval(timer);
+ score=0;moves=0;matches=0;seconds=0;
+ first=null;second=null;lock=false;
+ updateHUD();
+ document.getElementById("message").textContent="คลิกแผ่นป้าย 2 ใบเพื่อเริ่มจับคู่";
+ board.innerHTML="";
+
+ cards=shuffle(pairs.flatMap((p,i)=>[
+   {text:p[0],pair:i},
+   {text:p[1],pair:i}
+ ]));
+
+ cards.forEach((data,index)=>{
+   const card=document.createElement("div");
+   card.className="card";
+   card.innerHTML=`
+    <div class="card-inner">
+      <div class="face back">❓<small>เปิดป้าย</small></div>
+      <div class="face front">${data.text}</div>
+    </div>`;
+   card.addEventListener("click",()=>flipCard(card,index));
+   board.appendChild(card);
+ });
+
+ timer=setInterval(()=>{
+   seconds++;
+   updateHUD();
+ },1000);
+}
+
+function flipCard(card,index){
+ if(lock || card.classList.contains("flipped") || card.classList.contains("matched")) return;
+
+ card.classList.add("flipped");
+
+ if(!first){
+   first={card,index,data:cards[index]};
+   return;
+ }
+
+ second={card,index,data:cards[index]};
+ moves++;
+ updateHUD();
+ lock=true;
+
+ if(first.data.pair===second.data.pair){
+   setTimeout(()=>{
+     first.card.classList.add("matched");
+     second.card.classList.add("matched");
+     matches++;
+     score+=10;
+     document.getElementById("message").textContent="🎉 เก่งมาก! จับคู่ถูกแล้ว!";
+     sparkle();
+     resetSelection();
+     updateHUD();
+
+     if(matches===pairs.length) finishGame();
+   },350);
+ }else{
+   first.card.classList.add("wrong");
+   second.card.classList.add("wrong");
+   document.getElementById("message").textContent="❌ ยังไม่ใช่คู่นี้ ลองใหม่อีกครั้งนะ";
+   setTimeout(()=>{
+     first.card.classList.remove("flipped","wrong");
+     second.card.classList.remove("flipped","wrong");
+     resetSelection();
+     document.getElementById("message").textContent="เปิดอีก 2 ใบเพื่อหาคู่";
+   },850);
+ }
+}
+
+function resetSelection(){first=null;second=null;lock=false}
+
+function updateHUD(){
+ document.getElementById("score").textContent=score;
+ document.getElementById("matches").textContent=matches;
+ document.getElementById("moves").textContent=moves;
+ document.getElementById("time").textContent=formatTime(seconds);
+}
+function formatTime(s){
+ return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
+}
+function finishGame(){
+ clearInterval(timer);timer=null;
+ score+=50;
+ document.getElementById("finalScore").textContent=score;
+ document.getElementById("finalMoves").textContent=moves;
+ document.getElementById("finalTime").textContent=formatTime(seconds);
+ setTimeout(()=>{
+   document.getElementById("win").style.display="flex";
+   sparkle(true);
+ },550);
+}
+function closeWin(){document.getElementById("win").style.display="none"}
+function showHelp(){
+ alert("วิธีเล่น\\n\\n1. คลิกแผ่นป้ายใบแรก\\n2. คลิกใบที่สอง\\n3. ถ้าเป็นคู่กันจะล็อกไว้\\n4. ถ้าไม่ใช่จะปิดกลับ\\n5. จับคู่ให้ครบ 4 คู่");
+}
+function sparkle(big=false){
+ const count=big?35:12;
+ for(let i=0;i<count;i++){
+   const e=document.createElement("div");
+   e.textContent=["✨","⭐","🎉"][Math.floor(Math.random()*3)];
+   e.style.position="fixed";
+   e.style.left=(10+Math.random()*80)+"vw";
+   e.style.top=(15+Math.random()*70)+"vh";
+   e.style.fontSize=(16+Math.random()*28)+"px";
+   e.style.zIndex=99;e.style.pointerEvents="none";
+   document.body.appendChild(e);
+   e.animate([
+    {transform:"scale(.3)",opacity:0},
+    {transform:"scale(1.2)",opacity:1},
+    {transform:"scale(.7) translateY(40px)",opacity:0}
+   ],{duration:900+Math.random()*500}).onfinish=()=>e.remove();
+ }
+}
+startGame();
+</script>
+</body>
+</html>
